@@ -1,0 +1,114 @@
+---
+title: "Data Mining in R using CRISP-DM Methodology"
+output: html_notebook
+---
+
+This notebook has the porpuse to be a point of the Start on Data Mining using the Adults USA citizen information from the 90s. In this small project we will use the CRISP-DM methodology to work with the Data.
+
+
+Libraries
+=======
+```{r}
+library(arules)
+library(arulesViz)
+library(tidyverse)
+library(plyr)
+library(ggplot2)
+library(knitr)
+library(lubridate)
+library(RColorBrewer)
+```
+
+1. Business Understanding - Objectives
+=======
+ - The business objective in this case is to discover features that could
+lead a person to earn income over $50.000.
+
+ - The objective of data mining is to discover rules of interest that allow
+Associate features with the fact of earning more than $ 50.000 .
+
+
+2. Data Preparation
+=======
+Reading the Data
+```{r}
+ vData<- read.csv('AdultosUSA.csv',sep=';',dec=',',stringsAsFactors = FALSE)
+```
+
+
+Lets see what we got.
+```{r}
+head(vData)
+```
+
+Deleting Rows with empty values
+```{r}
+vDataFull<- na.omit(vData)
+```
+
+
+
+Changing WorkType, EducationLevel, MaritalStatus,Ocupation,Sex, OriginCountry and Incomes to Factors
+```{r}
+vDataFull$WorkType <- as.factor(vDataFull$WorkType)
+vDataFull$EducationLevel <- as.factor(vDataFull$EducationLevel)
+vDataFull$MaritalStatus <- as.factor(vDataFull$MaritalStatus)
+vDataFull$Ocupation <- as.factor(vDataFull$Ocupation)
+vDataFull$Sex <- as.factor(vDataFull$Sex)
+vDataFull$OriginCountry <- as.factor(vDataFull$OriginCountry)
+vDataFull$Incomes <- as.factor(vDataFull$Incomes)
+```
+
+Now lets changed to a Transaction format.
+
+```{r}
+vDataFull$WorkType <- as.factor(vDataFull$WorkType)
+vDataFull$EducationLevel <- as.factor(vDataFull$EducationLevel)
+vDataFull$MaritalStatus <- as.factor(vDataFull$MaritalStatus)
+vDataFull$Ocupation <- as.factor(vDataFull$Ocupation)
+vDataFull$Sex <- as.factor(vDataFull$Sex)
+vDataFull$OriginCountry <- as.factor(vDataFull$OriginCountry)
+vDataFull$Incomes <- as.factor(vDataFull$Incomes)
+vDataFull$WeeklyHours <- as.factor(vDataFull$WeeklyHours)
+```
+
+The others Columns are in the correct type and there isnt Date Types, so not to be worry about this.
+
+```{r}
+head(vDataFull)
+```
+
+
+```{r}
+vTransactions <- as(vDataFull,"transactions") 
+```
+
+
+Looks like everything is correct, we can start with the Data Exploration.
+
+3. Data Understanding
+=======
+
+```{r}
+summary(vDataFull)
+```
+We have a very good mean on the Age. Something to worry about is the Sex Distribution, there is almost 200% more males than females this 
+behavior can dificult the sex analisys.
+
+Another thing is that mostly of the people earns more the 50 thousand per year. In very interested, on the people that earns less than 50 thousand. Let see what can we get:
+
+```{r}
+vData50OrLess = filter(vDataFull,Incomes == ">50K.")
+summary(vData50OrLess)
+```
+```{r}
+vData50OrMore = filter(vDataFull,Incomes == "<=50K.")
+summary(vData50OrMore)
+```
+
+There is very interesting information about Sex and Incomes.
+
+When we evaluate people that earns less than 50 thousand (>50K.), the diference between sex is almost a 600% and when we evaluate more than 50 thousand (<=50K.) is not more than 150% .
+
+
+

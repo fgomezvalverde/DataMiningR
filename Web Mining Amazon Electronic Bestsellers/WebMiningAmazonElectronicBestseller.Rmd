@@ -1,0 +1,227 @@
+---
+title: "Web Mining Amazon Electronic Bestsellers"
+output: html_notebook
+---
+
+This notebook has the porpuse to be a point of the Start on Web Mining using the Amazon Electronic BestSellers information from the Amazon website. In this project we will use the CRISP-DM methodology to work with the Data.
+
+Libraries
+=======
+```{r}
+
+library(tibble)
+library(stringr)
+library(rvest)
+library(factoextra)
+library(cluster)
+library(NbClust)
+library(ggplot2)
+library(RCurl)
+library(XML)
+library(stringr)
+```
+
+
+0. Web Mining
+Web Mining
+=======
+```{r}
+vLinkAccessories = "https://www.amazon.com/Best-Sellers-Electronics-Accessories-Supplies/zgbs/electronics/281407/ref=zg_bs_nav_e_1_e"
+vLinkGPSNavigation = "https://www.amazon.com/Best-Sellers-Electronics-GPS-Finders-Accessories/zgbs/electronics/172526/ref=zg_bs_nav_e_1_e"
+vLinkOfficeElectronics = "https://www.amazon.com/Best-Sellers-Electronics-Office-Products/zgbs/electronics/172574/ref=zg_bs_nav_e_1_e"
+vLinkPortableAudio = "https://www.amazon.com/Best-Sellers-Electronics-Portable-Audio-Video/zgbs/electronics/172623/ref=zg_bs_nav_e_1_e"
+vFileName = "Data.csv"
+write("Category;Ranking;ReviewsQuantity;Rating;Price;Name",file=vFileName,append=TRUE)
+```
+
+```{r}
+CleanString <- function(vHtml) {
+  vNewCleanedHtml <- str_replace_all(vHtml, "[\\r\\n\\t]+", "")
+  vNewCleanedHtml <- str_trim(str_replace_all(vNewCleanedHtml, "\\s+", ""))
+  return(vNewCleanedHtml)
+}
+```
+
+
+```{r}
+SaveItemAmazon <- function(vText,pCategory) {
+  vCategory =pCategory
+  vRanking = gsub( "([0-9]+).*","\\1",vText)
+  vReviewsQuantity = as.integer(str_replace_all(gsub( ".*?stars([0-9]+,[0-9]+)[$].*","\\1",vText),",",""))
+  VRating = as.double(gsub( ".*?([0-9].[0-9])outof.*","\\1",vText))
+  vPrice = as.double(gsub( ".*?[$]([0-9]+.*[0-9]*)","\\1",vText))  
+  vName = gsub( "(.*?)[0-9].[0-9]outof.*","\\1",vText)
+  options(useFancyQuotes = FALSE)
+  vNewRowList = c(dQuote(vCategory),vRanking,vReviewsQuantity,VRating,vPrice,dQuote(vName))
+  vNewRow = paste(vNewRowList, collapse = ";")
+  write(vNewRow,file=vFileName,append=TRUE)
+  return(vNewRow)
+}
+```
+
+
+```{r}
+
+GetDataFromURL <- function(vLink,pCategory) {
+  html = getURL(vLink1, followlocation = TRUE)
+  doc = htmlParse(html, asText=TRUE)
+  vItemList_PlainText <- xpathSApply(doc, "//*[@id = 'zg-ordered-list']", xmlValue,trim = TRUE)
+  vItemList_PlainText_Cleaned = CleanString(vItemList_PlainText)
+  
+  vSplitedList = unlist(strsplit(substring(vItemList_PlainText_Cleaned,2), "#"))
+  
+  for (vItem in vSplitedList){
+    SaveItemAmazon(vItem,pCategory)
+
+  }
+
+}
+```
+
+```{r}
+GetDataFromURL(vLinkAccessories,"Accesories")
+GetDataFromURL(vLinkGPSNavigation,"GPSNavigation")
+GetDataFromURL(vLinkOfficeElectronics,"OfficeElectronics")
+GetDataFromURL(vLinkPortableAudio,"PortableAudio")
+```
+
+
+1. Business Understanding - Objectives
+=======
+ - The business objective in this case is to discover features that could
+lead a person to buy the most rank products and product rating or ranking and reviews quantity 
+ - The objective of data mining is to do clustiring separating ranking products by product rating and reviews quantity 
+
+
+2. Data Preparation
+=======
+Reading the Data
+```{r}
+ vData<- read.csv(vFileName,sep=';',dec=',',stringsAsFactors = FALSE)
+```
+
+
+Lets see what we got.
+```{r}
+head(vData)
+```
+Let's see if we have empty values
+```{r}
+sum(is.na(vData))
+```
+
+Deleting Rows with empty values
+```{r}
+vDataFull<- na.omit(vData)
+```
+First, we are going to see the column types
+```{r}
+str(vDataFull)
+```
+
+First, we are going to change a little bit the columns
+
+```{r}
+vDataFull$Rating <- as.numeric(vDataFull$Rating)
+vDataFull$Price <- as.numeric(vDataFull$Price)
+```
+The name of the product will be a factor for us, and will leave only the quantitive columns, so we converted Rating and Price into numerics
+
+Now, we are going to delete Category and Name column
+```{r}
+vDataClean <- vDataFull[,-c(1,1)]
+vDataClean <- vDataClean[,-c(5,5)]
+str(vDataClean)
+```
+
+Let's see the data again
+
+```{r}
+str(vDataClean)
+```
+
+The others Columns are in the correct type and there isn't Date Types, so not to be worry about this.
+
+```{r}
+head(vDataClean)
+```
+
+Looks like everything is correct, we can start with the Data Exploration.
+
+3. Data Understanding
+=======
+
+```{r}
+summary(vDataClean)
+```
+
+
+
+Conclusion 
+=
+
+We only delete Category column since it was a categorical colunm and we'll only work with quantity caracteristics, now we think we have all the necessary for the model but we will see if that is correct in the next fases. 
+
+For now, we are ready to start the modeling.
+
+
+
+4. Modeling
+=======
+
+In this fase, the first thing we'll do is normalize the data, for this we only need the quantity columns
+
+```{r}
+vNormData <- vDataClean[,-c(5,5)]
+str(vNormData)
+```
+
+Normalization
+```{r}
+vNormData.scale <- as.data.frame(scale(vNormData))
+```
+
+Now we create the clusters
+
+```{r}
+set.seed(80)
+
+vNormData.km <- kmeans(vNormData.scale, centers = 10) #clustering
+names(vNormData.km) #object content
+
+vNormData.km$cluster # cluster observations asignation
+vNormData.km$totss #totals
+vNormData.km$betweenss #inter groups
+vNormData.km$withinss # intra groups
+vNormData.km$tot.withinss # intra groups (total)
+```
+Obtain the best number of clusters
+
+#best number of clusters based on inter groups
+```{r}
+sumbt <- kmeans(vNormData.scale, centers = 1)$betweenss
+
+for (i in 2:20) sumbt[i] <- kmeans(vNormData.scale, centers = i)$betweenss
+```
+
+let's see the result
+```{r}
+plot(1:20,sumbt, type = "b", xlab = "cluster number", ylab = "inter groups number")
+```
+
+Results
+```{r}
+plot(vNormData$Ranking, vNormData$ReviewsQuantity, col=vNormData.km$cluster, xlab = "Ranking", ylab = "Reviews Quantity")
+```
+
+
+More detailed
+
+```{r}
+aggregate(vNormData, by = list(vNormData.km$cluster), mean)
+```
+
+Conclusion
+======
+The variables Rating and Reviews Quantities are strongerly relationed with the Ranking , because the mean of these ones in the clusters es higher than 4.5 and 15,000 . However its not necessarly the point of the clusterisation. According to the algorithm k-means , the best K is between 10 and 15.
+
