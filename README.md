@@ -1,5 +1,3 @@
-# Data Mining with R
-
-Just playing around with R , geting in touch with the process of the Data Mining.
+# Data Mining with Python and R / some of them with Data from Costa Rica Public Instites
 
 Feel free to copy this code.
